@@ -22,52 +22,40 @@ jobs:
       - name: Build with Maven
         run: mvn clean package
 
-      - name: Create ZIP for deployment
-        run: |
-          mkdir deploy
-          cp target/mywebsite-0.0.1-SNAPSHOT.jar deploy/
-          cd deploy
-          zip -r ../app-deployment.zip .
+      - name: Upload artifact to GitHub
+        uses: actions/upload-artifact@v2
+        with:
+          name: eb-artifact
+          path: target/*.jar
 
-      - name: Install EB CLI
-        run: |
-          pip install --upgrade pip
-          pip install awsebcli
+  deploy_prod:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
 
-      - name: Initialize Elastic Beanstalk CLI
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          eb init $EB_APP_NAME -p "Corretto 21" --region $AWS_REGION
+    steps:
+      - name: Download latest artifact from GitHub
+        uses: actions/download-artifact@v2
+        with:
+          name: eb-artifact
+          path: target/
 
-      - name: Upload ZIP to S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          aws s3 cp app-deployment.zip s3://elasticbeanstalk-$AWS_REGION-$AWS_ACCOUNT_ID/app-deployment.zip
+      - name: List files in target directory
+        run: ls -l target/
 
-      - name: Create Application Version
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+      - name: Get latest artifact name
+        id: get_latest_artifact
         run: |
-          VERSION_LABEL=$(date +'%Y%m%d%H%M%S')
-          aws elasticbeanstalk create-application-version \
-            --application-name $EB_APP_NAME \
-            --version-label $VERSION_LABEL \
-            --source-bundle S3Bucket=elasticbeanstalk-$AWS_REGION-$AWS_ACCOUNT_ID,S3Key=app-deployment.zip
+          latest_file=$(ls -t target/*.jar | head -n1)
+          echo "::set-output name=latest_artifact::$latest_file"
 
-      - name: Deploy to Elastic Beanstalk
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          aws elasticbeanstalk update-environment \
-            --environment-name $EB_ENV_NAME \
-            --version-label $VERSION_LABEL
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v15
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: CoffeShop-Web
+          environment_name: CoffeShop-Web-PROD-env
+          region: ap-south-1
+          version_label: ${{ github.sha }}
+          deployment_package: ${{ steps.get_latest_artifact.outputs.latest_artifact }}
+          use_existing_version_if_available: true
