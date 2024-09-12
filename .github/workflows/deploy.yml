@@ -38,7 +38,7 @@ jobs:
       with:
         name: spring-boot-app
 
-    - name: Configure Elastic Beanstalk
+    - name: Deploy to Elastic Beanstalk
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -46,11 +46,11 @@ jobs:
         EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
         EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
       run: |
-        # Initialize Elastic Beanstalk CLI with the correct platform name
+        # Initialize Elastic Beanstalk CLI
         eb init -p "Corretto 21" --region $AWS_REGION
 
         # Create a new application version
-        eb create version --application-name $EB_APP_NAME --version-label ${{ github.sha }} --source-bundle file://target/mywebsite-0.0.1-SNAPSHOT.jar
+        eb create version --version-label ${{ github.sha }} --source-bundle file://target/mywebsite-0.0.1-SNAPSHOT.jar
 
         # Deploy to Elastic Beanstalk
         eb deploy --environment-name $EB_ENV_NAME
