@@ -3,49 +3,42 @@ name: Deploy to Elastic Beanstalk
 on:
   push:
     branches:
-      - main  # Only trigger deployment on push to the main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: '21'
-          distribution: 'corretto'
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'
+        distribution: 'adopt-openjdk'
 
-      - name: Build with Maven
-        run: mvn clean package
+    - name: Build with Maven
+      run: mvn package
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+    - name: Create deployment package
+      run: |
+        mkdir -p deploy
+        cp target/mywebsite-0.0.1-SNAPSHOT.jar deploy/app.jar
+        cd deploy
+        zip -r ../app.zip .
 
-      - name: Install AWS EB CLI
-        run: pip install awsebcli
-
-      - name: Initialize Elastic Beanstalk application
-        run: |
-          eb init -p corretto-21 ${{ secrets.EB_APP_NAME }} --region ${{ secrets.AWS_REGION }}
-
-      - name: Set the EB environment
-        run: eb use ${{ secrets.EB_ENV_NAME }}
-
-      - name: Create a deployment package
-        run: |
-          mkdir -p deploy
-          cp target/mywebsite-0.0.1-SNAPSHOT.jar deploy/app.jar
-          cd deploy
-          zip -r ../app.zip .
-
-      - name: Deploy to Elastic Beanstalk
-        run: |
-          eb deploy --staged --label ${{ github.sha }} --message "Deployed from GitHub Actions"
+    - name: Deploy to Elastic Beanstalk
+      uses: einaregilsson/beanstalk-deploy@v20
+      with:
+        application_name: 'webapp'
+        environment_name: 'website'
+        version_label: ${{ github.run_id }}
+        region: 'ap-south-1'
+        bucket_name: 'elasticbeanstalk-ap-south-1-122238031788'
+        bucket_key: 'app.zip'
+        deploy_package: 'app.zip'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
