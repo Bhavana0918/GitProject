@@ -43,14 +43,11 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
+          EB_APP_NAME: ${{ secrets.EB_APP_NAME }}  # The name of your Elastic Beanstalk application
           EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}  # The name of your Elastic Beanstalk environment
         run: |
           # Initialize Elastic Beanstalk CLI
-          eb init -p "Corretto 21" --region $AWS_REGION
-
-          # Create a new application version
-          version_label=$(date +%Y%m%d%H%M%S)
-          eb create version --version-label $version_label --source-bundle file://target/mywebsite-0.0.1-SNAPSHOT.jar
+          eb init $EB_APP_NAME -p "Corretto 21" --region $AWS_REGION
 
           # Deploy to Elastic Beanstalk environment
-          eb deploy ${{ secrets.EB_ENV_NAME }}
+          eb deploy $EB_ENV_NAME
