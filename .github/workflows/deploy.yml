@@ -47,7 +47,7 @@ jobs:
         EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
       run: |
         # Initialize Elastic Beanstalk CLI with the correct platform name
-        eb init -p "Corretto 21 Java 17" --region $AWS_REGION
+        eb init -p "Corretto 21" --region $AWS_REGION
 
         # Create a new application version
         eb create version --application-name $EB_APP_NAME --version-label ${{ github.sha }} --source-bundle file://target/mywebsite-0.0.1-SNAPSHOT.jar
