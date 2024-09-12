@@ -42,6 +42,14 @@ jobs:
         run: |
           eb init $EB_APP_NAME -p "Corretto 21" --region $AWS_REGION
 
+      - name: Upload ZIP to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          aws s3 cp app-deployment.zip s3://elasticbeanstalk-$AWS_REGION-$AWS_ACCOUNT_ID/app-deployment.zip
+
       - name: Create Application Version
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
