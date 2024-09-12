@@ -16,7 +16,9 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
-          java-version: '17'  # Adjust to your Java version
+          java-version: '17'
+          distribution: 'adopt'  # Use 'adopt' for Adoptium/AdoptOpenJDK
+          cache: 'maven'  # Cache Maven dependencies (optional)
 
       - name: Build with Maven
         run: mvn clean package
