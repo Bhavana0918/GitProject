@@ -35,6 +35,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Set up Git user
+        run: |
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+
       - name: Deploy to Elastic Beanstalk
         run: |
           # Install Elastic Beanstalk CLI
@@ -43,7 +48,7 @@ jobs:
           eb init -p corretto-21 ${{ secrets.EB_APP_NAME }} --region ${{ secrets.AWS_REGION }}
           
           # Check if deploying to prod branch
-          if [[ "${{ github.ref_name }}" == "main" ]]; then
+          if [[ "${{ github.ref_name }}" == "prod" ]]; then
             # Generate the next tag like R2024-0.1, R2024-0.2, etc.
             LAST_TAG=$(git describe --tags --match "R2024-*" --abbrev=0 || echo "R2024-0.0")
             NEW_TAG=$(echo $LAST_TAG | awk -F. '{print $1"."$2"."$3+1}')
@@ -60,7 +65,7 @@ jobs:
   deploy-production:
     runs-on: ubuntu-latest
     needs: deploy
-    if: github.ref_name == 'main'
+    if: github.ref_name == 'prod'
 
     steps:
       - name: Create release tag
