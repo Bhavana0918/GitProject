@@ -39,5 +39,13 @@ jobs:
       - name: Set the EB environment
         run: eb use ${{ secrets.EB_ENV_NAME }}
 
+      - name: Create a deployment package
+        run: |
+          mkdir -p deploy
+          cp target/mywebsite-0.0.1-SNAPSHOT.jar deploy/app.jar
+          cd deploy
+          zip -r ../app.zip .
+
       - name: Deploy to Elastic Beanstalk
-        run: eb deploy --staged
+        run: |
+          eb deploy --staged --label ${{ github.sha }} --message "Deployed from GitHub Actions"
