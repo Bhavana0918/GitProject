@@ -3,10 +3,10 @@ name: Deploy to Elastic Beanstalk
 on:
   push:
     branches:
-      - main
+      - main  # or your target branch
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,29 +16,38 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v3
       with:
-        java-version: '21'
-        distribution: 'adopt-openjdk'
+        java-version: '21'  # Use your Java version
 
     - name: Build with Maven
-      run: mvn package
+      run: mvn clean package
 
-    - name: Create deployment package
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: spring-boot-app
+        path: target/mywebsite-0.0.1-SNAPSHOT.jar
+
+    - name: Install EB CLI
       run: |
-        mkdir -p deploy
-        cp target/mywebsite-0.0.1-SNAPSHOT.jar deploy/app.jar
-        cd deploy
-        zip -r ../app.zip .
+        pip install --upgrade pip
+        pip install awsebcli
+
+    - name: Download artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: spring-boot-app
 
     - name: Deploy to Elastic Beanstalk
-      uses: einaregilsson/beanstalk-deploy@v20
-      with:
-        application_name: 'webapp'
-        environment_name: 'website'
-        version_label: ${{ github.run_id }}
-        region: 'ap-south-1'
-        bucket_name: 'elasticbeanstalk-ap-south-1-122238031788'
-        bucket_key: 'app.zip'
-        deploy_package: 'app.zip'
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+      run: |
+        # Initialize Elastic Beanstalk CLI
+        eb init -p java --region $AWS_REGION
+        
+        # Create a new application version
+        eb create version --application-version ${{ github.sha }} --source-bundle file://mywebsite-0.0.1-SNAPSHOT.jar
+        
+        # Deploy to Elastic Beanstalk
+        eb deploy --environment-name ${{ secrets.EB_ENV_NAME }}
