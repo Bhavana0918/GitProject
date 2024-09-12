@@ -49,8 +49,5 @@ jobs:
         # Initialize Elastic Beanstalk CLI
         eb init -p "Corretto 21" --region $AWS_REGION
 
-        # Create a new application version
-        eb create version --version-label ${{ github.sha }} --source-bundle file://target/mywebsite-0.0.1-SNAPSHOT.jar
-
         # Deploy to Elastic Beanstalk
         eb deploy --environment-name $EB_ENV_NAME
