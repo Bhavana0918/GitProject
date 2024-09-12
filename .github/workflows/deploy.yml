@@ -17,7 +17,7 @@ jobs:
       uses: actions/setup-java@v3
       with:
         java-version: '21'
-        distribution: 'corretto' # Use your Java version
+        distribution: 'corretto'
 
     - name: Build with Maven
       run: mvn clean package
@@ -43,12 +43,14 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
+        EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
       run: |
         # Initialize Elastic Beanstalk CLI
-        eb init -p java --region $AWS_REGION
+        eb init -p java --region $AWS_REGION --application-name $EB_APP_NAME
         
         # Create a new application version
-        eb create version --application-version ${{ github.sha }} --source-bundle file://mywebsite-0.0.1-SNAPSHOT.jar
+        eb create version --application-version ${{ github.sha }} --source-bundle file://target/mywebsite-0.0.1-SNAPSHOT.jar
         
         # Deploy to Elastic Beanstalk
-        eb deploy --environment-name ${{ secrets.EB_ENV_NAME }}
+        eb deploy --environment-name $EB_ENV_NAME
