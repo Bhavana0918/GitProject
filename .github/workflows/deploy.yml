@@ -3,7 +3,7 @@ name: Deploy to Elastic Beanstalk
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to the main branch
+      - dev  # Trigger deployment on push to the main branch
 
 jobs:
   deploy:
@@ -16,9 +16,8 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v3
         with:
-          java-version: '17'
-          distribution: 'adopt'  # Use 'adopt' for Adoptium/AdoptOpenJDK
-          cache: 'maven'  # Cache Maven dependencies (optional)
+          java-version: '21'
+          distribution: 'corretto'
 
       - name: Build with Maven
         run: mvn clean package
@@ -36,7 +35,7 @@ jobs:
           pip install awsebcli
 
           # Initialize Elastic Beanstalk
-          eb init -p java-17 ${{ secrets.EB_APP_NAME }} --region ${{ secrets.AWS_REGION }}
+          eb init -p corretto-21 ${{ secrets.EB_APP_NAME }} --region ${{ secrets.AWS_REGION }}
 
           # Create or update the Elastic Beanstalk environment
           eb deploy --staged
