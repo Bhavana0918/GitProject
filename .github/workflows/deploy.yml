@@ -7,7 +7,7 @@ on:
       - dev
       - Test
       - release
-  workflow_dispatch:  # Allows triggering the pipeline manually with a specific commit ID
+  workflow_dispatch:  # Allows manual triggering of the pipeline
 
 jobs:
   deploy:
@@ -39,32 +39,33 @@ jobs:
         run: |
           # Install Elastic Beanstalk CLI
           pip install awsebcli
-
           # Initialize Elastic Beanstalk
           eb init -p corretto-21 ${{ secrets.EB_APP_NAME }} --region ${{ secrets.AWS_REGION }}
-
-          # For production deployment, add a tag and deploy
-          if [[ ${{ github.ref_name }} == "prod" ]]; then
-            NEW_TAG=$(git describe --tags --match "R2024-*" --abbrev=0 | awk -F. '{print $1"."$2+1}')
+          
+          # Check if deploying to prod branch
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            # Generate the next tag like R2024-0.1, R2024-0.2, etc.
+            LAST_TAG=$(git describe --tags --match "R2024-*" --abbrev=0 || echo "R2024-0.0")
+            NEW_TAG=$(echo $LAST_TAG | awk -F. '{print $1"."$2"."$3+1}')
             git tag -a "${NEW_TAG}" -m "Release ${NEW_TAG}"
             git push origin "${NEW_TAG}"
-
             # Deploy to Elastic Beanstalk
             eb deploy --staged
           else
-            # Deploy to Elastic Beanstalk for dev, uat, or release branches
+            # Deploy to Elastic Beanstalk for non-production branches
             eb deploy --staged
+          fi
 
-  # Optionally create a tag when deploying to production
+  # Optional: Deploy to production and create release tag when deploying to 'prod' branch
   deploy-production:
     runs-on: ubuntu-latest
     needs: deploy
-
-    if: github.ref_name == 'prod'
+    if: github.ref_name == 'main'
 
     steps:
       - name: Create release tag
         run: |
-          NEW_TAG=$(git describe --tags --match "R2024-*" --abbrev=0 | awk -F. '{print $1"."$2+1}')
+          LAST_TAG=$(git describe --tags --match "R2024-*" --abbrev=0 || echo "R2024-0.0")
+          NEW_TAG=$(echo $LAST_TAG | awk -F. '{print $1"."$2"."$3+1}')
           git tag -a "${NEW_TAG}" -m "Release ${NEW_TAG}"
           git push origin "${NEW_TAG}"
