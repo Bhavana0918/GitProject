@@ -45,5 +45,9 @@ jobs:
           # Initialize Elastic Beanstalk CLI
           eb init $EB_APP_NAME -p "Corretto 21" --region $AWS_REGION
 
-          # Deploy the latest artifact to Elastic Beanstalk environment
-          eb deploy $EB_ENV_NAME --source-bundle file://app-deployment.zip
+          # Create an application version
+          VERSION_LABEL=$(date +'%Y%m%d%H%M%S')
+          aws elasticbeanstalk create-application-version --application-name $EB_APP_NAME --version-label $VERSION_LABEL --source-bundle S3Bucket=elasticbeanstalk-$AWS_REGION-$AWS_ACCOUNT_ID,S3Key=app-deployment.zip
+
+          # Update the environment to use the new version
+          aws elasticbeanstalk update-environment --environment-name $EB_ENV_NAME --version-label $VERSION_LABEL
