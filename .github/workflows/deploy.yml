@@ -22,32 +22,28 @@ jobs:
       - name: Build with Maven
         run: mvn clean package
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: spring-boot-app
-          path: target/mywebsite-0.0.1-SNAPSHOT.jar
+      - name: Create ZIP for deployment
+        run: |
+          mkdir deploy
+          cp target/mywebsite-0.0.1-SNAPSHOT.jar deploy/
+          cd deploy
+          zip -r ../app-deployment.zip .
 
       - name: Install EB CLI
         run: |
           pip install --upgrade pip
           pip install awsebcli
 
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: spring-boot-app
-
       - name: Deploy to Elastic Beanstalk
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          EB_APP_NAME: ${{ secrets.EB_APP_NAME }}  # The name of your Elastic Beanstalk application
-          EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}  # The name of your Elastic Beanstalk environment
+          EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
+          EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
         run: |
           # Initialize Elastic Beanstalk CLI
           eb init $EB_APP_NAME -p "Corretto 21" --region $AWS_REGION
 
           # Deploy the latest artifact to Elastic Beanstalk environment
-          eb deploy $EB_ENV_NAME --label $(date +'%Y%m%d%H%M%S')
+          eb deploy $EB_ENV_NAME --source-bundle file://app-deployment.zip
