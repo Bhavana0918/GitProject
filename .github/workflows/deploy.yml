@@ -34,18 +34,32 @@ jobs:
           pip install --upgrade pip
           pip install awsebcli
 
-      - name: Deploy to Elastic Beanstalk
+      - name: Initialize Elastic Beanstalk CLI
         env:
-          JAVA_HOME: /opt/hostedtoolcache/Java_Corretto_jdk/21.0.4-7.1/x64
-          JAVA_HOME_21_X64: /opt/hostedtoolcache/Java_Corretto_jdk/21.0.4-7.1/x64
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
-          EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
         run: |
-          # Initialize Elastic Beanstalk CLI
           eb init $EB_APP_NAME -p "Corretto 21" --region $AWS_REGION
 
-          # Deploy to Elastic Beanstalk environment
-          eb deploy
+      - name: Create Application Version
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          VERSION_LABEL=$(date +'%Y%m%d%H%M%S')
+          aws elasticbeanstalk create-application-version \
+            --application-name $EB_APP_NAME \
+            --version-label $VERSION_LABEL \
+            --source-bundle S3Bucket=elasticbeanstalk-$AWS_REGION-$AWS_ACCOUNT_ID,S3Key=app-deployment.zip
+
+      - name: Deploy to Elastic Beanstalk
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name $EB_ENV_NAME \
+            --version-label $VERSION_LABEL
