@@ -3,51 +3,49 @@ name: Deploy to Elastic Beanstalk
 on:
   push:
     branches:
-      - main  # or your target branch
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up JDK
-      uses: actions/setup-java@v3
-      with:
-        java-version: '21'
-        distribution: 'corretto'
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'corretto'
 
-    - name: Build with Maven
-      run: mvn clean package
+      - name: Build with Maven
+        run: mvn clean package
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: spring-boot-app
-        path: target/mywebsite-0.0.1-SNAPSHOT.jar
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: spring-boot-app
+          path: target/mywebsite-0.0.1-SNAPSHOT.jar
 
-    - name: Install EB CLI
-      run: |
-        pip install --upgrade pip
-        pip install awsebcli
+      - name: Install EB CLI
+        run: |
+          pip install --upgrade pip
+          pip install awsebcli
 
-    - name: Download artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: spring-boot-app
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: spring-boot-app
 
-    - name: Deploy to Elastic Beanstalk
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
-        EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
-      run: |
-        # Initialize Elastic Beanstalk CLI
-        eb init -p "Corretto 21" --region $AWS_REGION
+      - name: Deploy to Elastic Beanstalk
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          # Initialize Elastic Beanstalk CLI
+          eb init -p "Corretto 21" --region $AWS_REGION
 
-        # Deploy to Elastic Beanstalk
-        eb deploy --environment-name $EB_ENV_NAME
+          # Deploy to Elastic Beanstalk
+          eb deploy $EB_ENV_NAME
