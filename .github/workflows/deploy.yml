@@ -49,8 +49,5 @@ jobs:
           # Initialize Elastic Beanstalk CLI
           eb init $EB_APP_NAME -p "Corretto 21" --region $AWS_REGION
 
-          VERSION_LABEL=$(date +'%Y%m%d%H%M%S')  # Use a timestamp for versioning
-          eb create version --version-label $VERSION_LABEL --source-bundle file://target/mywebsite-0.0.1-SNAPSHOT.jar
-
-          # Deploy to Elastic Beanstalk environment
-          eb deploy $EB_ENV_NAME
+          # Deploy the latest artifact to Elastic Beanstalk environment
+          eb deploy $EB_ENV_NAME --label $(date +'%Y%m%d%H%M%S')
