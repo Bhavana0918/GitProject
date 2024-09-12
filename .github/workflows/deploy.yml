@@ -48,4 +48,4 @@ jobs:
           eb init -p "Corretto 21" --region $AWS_REGION
 
           # Deploy to Elastic Beanstalk
-          eb deploy $EB_ENV_NAME
+          eb deploy  ${{ secrets.EB_ENV_NAME }}
