@@ -4,10 +4,17 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      commit_id:
+        description: 'Commit ID to deploy'
+        required: true
+        default: ''
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
