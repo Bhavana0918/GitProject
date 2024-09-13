@@ -1,9 +1,9 @@
-name: Deploy to Elastic Beanstalk
+name: Deploy Hotfix
 
 on:
   push:
     branches:
-      - main
+      - hotfix/*
 
 jobs:
   build:
@@ -28,8 +28,8 @@ jobs:
           name: eb-artifact
           path: target/*.jar
 
-  deploy_prod:
-    needs: build-and-deploy
+  deploy:
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -38,9 +38,6 @@ jobs:
         with:
           name: eb-artifact
           path: target/
-
-      - name: List files in target directory
-        run: ls -l target/
 
       - name: Get latest artifact name
         id: get_latest_artifact
