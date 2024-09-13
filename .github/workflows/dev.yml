@@ -1,40 +1,57 @@
-name: Deploy to Elastic Beanstalk 
+name: Deploy to Elastic Beanstalk
 
 on:
   push:
     branches:
       - dev
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.sha }} # Ensures that the latest commit is checked out
 
-      - name: Set up JDK 21
+      - name: Set up JDK
         uses: actions/setup-java@v3
         with:
-          distribution: 'corretto'
           java-version: '21'
+          distribution: 'corretto'
 
       - name: Build with Maven
-        run: mvn clean install
+        run: mvn clean package
 
-      - name: Save JAR artifact
+      - name: Upload artifact to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: my-app-jar
-          path: target/mywebsite-0.0.1-SNAPSHOT.jar
+          name: eb-artifact
+          path: target/*.jar
 
-  deploy-dev:
+  deploy_prod:
     needs: build
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev' }}
+
     steps:
-      - name: Download JAR artifact
+      - name: Download latest artifact from GitHub
         uses: actions/download-artifact@v3
         with:
-          name: my-app-jar
+          name: eb-artifact
+          path: target/
+
+      - name: List files in target directory
+        run: ls -l target/
+
+      - name: Get latest artifact name
+        id: get_latest_artifact
+        run: |
+          latest_file=$(ls -t target/*.jar | head -n1)
+          echo "LATEST_ARTIFACT=$latest_file" >> $GITHUB_ENV
 
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v15
@@ -45,5 +62,5 @@ jobs:
           environment_name: ${{ secrets.EB_ENV_NAME }}
           region: ${{ secrets.AWS_REGION }}
           version_label: ${{ github.sha }}
-          deployment_package: target/mywebsite-0.0.1-SNAPSHOT.jar
+          deployment_package: ${{ env.LATEST_ARTIFACT }}
           use_existing_version_if_available: true
