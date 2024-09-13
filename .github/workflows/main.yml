@@ -1,9 +1,11 @@
-name: Deploy to dev prod main
+name: Deploy to Dev, UAT, and Prod
 
 on:
   push:
     branches:
       - dev
+    tags:
+      - 'R-*' # Matches tags starting with 'R-'
   workflow_dispatch:
     inputs:
       version:
@@ -14,12 +16,11 @@ on:
 jobs:
   # Step 1: Build and Deploy to Dev
   build_and_deploy_dev:
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          ref: dev
 
       - name: Set up JDK
         uses: actions/setup-java@v3
@@ -36,64 +37,10 @@ jobs:
           name: eb-artifact
           path: target/*.jar
 
-      - name: Deploy to Elastic Beanstalk (Dev)
-        uses: einaregilsson/beanstalk-deploy@v15
-        with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: ${{ secrets.EB_APP_NAME_DEV }}
-          environment_name: myweb-dev-env
-          region: ${{ secrets.AWS_REGION }}
-          version_label: ${{ github.sha }}
-          deployment_package: target/*.jar
-
-  # Step 2: Deploy to UAT (Test) if Dev Deployment is Successful
-  deploy_to_uat:
-    needs: build_and_deploy_dev
-    runs-on: ubuntu-latest
-    if: success()
-    steps:
-      - name: Download artifact from Dev
-        uses: actions/download-artifact@v3
-        with:
-          name: eb-artifact
-
-      - name: Deploy to Elastic Beanstalk (UAT)
-        uses: einaregilsson/beanstalk-deploy@v15
-        with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: ${{ secrets.EB_APP_NAME_UAT }}
-          environment_name: myweb-test-env
-          region: ${{ secrets.AWS_REGION }}
-          version_label: ${{ github.sha }}
-          deployment_package: target/*.jar
-
-  # Step 3: Deploy to Production if UAT Deployment is Successful
-  deploy_to_prod:
-    needs: deploy_to_uat
-    runs-on: ubuntu-latest
-    if: success()
-    steps:
-      - name: Download artifact from UAT
-        uses: actions/download-artifact@v3
-        with:
-          name: eb-artifact
-
-      - name: Deploy to Elastic Beanstalk (Prod)
-        uses: einaregilsson/beanstalk-deploy@v15
-        with:
-          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: ${{ secrets.EB_APP_NAME_PROD }}
-          environment_name: web-env
-          region: ${{ secrets.AWS_REGION }}
-          version_label: ${{ github.sha }}
-          deployment_package: target/*.jar
-
-      - name: Create Version Tag for Production
+      - name: Create Version Tag for Dev
+        if: startsWith(github.ref, 'refs/tags/R-')
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
-          git tag -a ${{ github.event.inputs.version }} -m "Release ${{ github.event.inputs.version }}"
-          git push origin ${{ github.event.inputs.version }}
+          git tag -a ${{ github.ref }} -m "Release ${{ github.ref }}"
+          git push origin ${{ github.ref }}
