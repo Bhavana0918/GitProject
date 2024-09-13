@@ -37,9 +37,6 @@ jobs:
         with:
           name: my-app-jar
 
-      - name: List files in target directory
-        run: ls -l target/
-
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v15
         with:
