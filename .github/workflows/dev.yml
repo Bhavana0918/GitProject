@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - dev
-  workflow_dispatch:
-    inputs:
-      commit_id:
-        description: 'Commit ID to deploy'
-        required: true
-        default: 
 
 jobs:
   build:
@@ -36,7 +30,6 @@ jobs:
   deploy-dev:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit_id != '' }}
 
     steps:
       - name: Download JAR artifact
@@ -84,37 +77,3 @@ jobs:
 
 
 
-# name: Deploy to Elastic Beanstalk
-
-# on:
-#   push:
-#     branches:
-#       - dev
-#   create:
-#     tags:
-#       - 'R-*'
-
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
-#     if: github.ref == 'refs/heads/dev'
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v3
-
-#       - name: Set up JDK 21
-#         uses: actions/setup-java@v3
-#         with:
-#           distribution: 'corretto'
-#           java-version: '21'
-
-#       - name: Build with Maven
-#         run: mvn clean install
-
-#       - name: Save JAR artifact
-#         uses: actions/upload-artifact@v3
-#         with:
-#           name: my-app-jar
-#           path: target/mywebsite-0.0.1-SNAPSHOT.jar
-
-  
