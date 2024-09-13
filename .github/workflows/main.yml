@@ -1,0 +1,129 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+      - uat
+  pull_request:
+    branches:
+      - main
+      - uat
+  workflow_dispatch:
+    inputs:
+      commit_id:
+        description: 'Commit ID to deploy'
+        required: true
+        default: ''
+      version:
+        description: 'Version tag for production release (e.g., R-2024-0.1)'
+        required: true
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        environment: [dev, uat, main]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+
+      - name: Build with Maven
+        run: mvn clean package
+
+      - name: Run Tests
+        run: mvn test
+        if: ${{ matrix.environment == 'dev' }}
+
+      - name: Upload artifact to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: eb-artifact
+          path: target/*.jar
+
+  deploy_dev:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/dev' }}
+
+    steps:
+      - name: Download latest artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: eb-artifact
+
+      - name: Deploy to Elastic Beanstalk (dev)
+        uses: einaregilsson/beanstalk-deploy@v15
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APP_NAME_DEV }}
+          environment_name: myweb-dev-env
+          region: ${{ secrets.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: target/*.jar
+
+  deploy_uat:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/uat' }}
+
+    steps:
+      - name: Download latest artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: eb-artifact
+
+      - name: Deploy to Elastic Beanstalk (uat)
+        uses: einaregilsson/beanstalk-deploy@v15
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APP_NAME_UAT }}
+          environment_name: myweb-test-env
+          region: ${{ secrets.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: target/*.jar
+
+  deploy_main:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+
+    steps:
+      - name: Download latest artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: eb-artifact
+
+      - name: Deploy to Elastic Beanstalk (main)
+        uses: einaregilsson/beanstalk-deploy@v15
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APP_NAME_PROD }}
+          environment_name: web-env
+          region: ${{ secrets.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: target/*.jar
+
+      - name: Create Version Tag
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git tag -a ${{ github.event.inputs.version }} -m "Release ${{ github.event.inputs.version }}"
+          git push origin ${{ github.event.inputs.version }}
