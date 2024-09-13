@@ -53,9 +53,9 @@ jobs:
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          application_name: CoffeShop-Web
-          environment_name: CoffeShop-Web-PROD-env
-          region: ap-south-1
+          application_name: ${{ secrets.EB_APP_NAME }}
+          environment_name: ${{ secrets.EB_ENV_NAME }}
+          region: ${{ secrets.AWS_REGION }}
           version_label: ${{ github.sha }}
           deployment_package: ${{ steps.get_latest_artifact.outputs.latest_artifact }}
           use_existing_version_if_available: true
