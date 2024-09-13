@@ -36,13 +36,6 @@ jobs:
         with:
           name: my-app-jar
 
-      - name: List files in target directory
-        run: ls -l target/
-
-      - name: Set version label
-        id: set_version
-        run: echo "VERSION_LABEL=$(echo ${{ github.sha }} | cut -c1-100)" >> $GITHUB_ENV
-
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v15
         with:
@@ -51,6 +44,6 @@ jobs:
           application_name: ${{ secrets.EB_APP_NAME }}
           environment_name: ${{ secrets.EB_ENV_NAME }}
           region: ${{ secrets.AWS_REGION }}
-          version_label: ${{ env.VERSION_LABEL }}
+          version_label: ${{ github.sha }}
           deployment_package: target/mywebsite-0.0.1-SNAPSHOT.jar
           use_existing_version_if_available: true
