@@ -1,4 +1,4 @@
-name: Deploy to Elastic Beanstalk
+name: Deploy to Elastic Beanstalk 
 
 on:
   push:
@@ -30,12 +30,18 @@ jobs:
   deploy-dev:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
       - name: Download JAR artifact
         uses: actions/download-artifact@v3
         with:
           name: my-app-jar
+
+      - name: List files in target directory
+        run: ls -l target/
+
+      - name: Set version label
+        id: set_version
+        run: echo "VERSION_LABEL=$(echo ${{ github.sha }} | cut -c1-100)" >> $GITHUB_ENV
 
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v15
@@ -43,34 +49,8 @@ jobs:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: ${{ secrets.EB_APP_NAME }}
-          environment_name: ${{ secrets.EB_ENV_NAME }}  
+          environment_name: ${{ secrets.EB_ENV_NAME }}
           region: ${{ secrets.AWS_REGION }}
-          version_label: ${{ env.TAG_NAME }} 
+          version_label: ${{ env.VERSION_LABEL }}
           deployment_package: target/mywebsite-0.0.1-SNAPSHOT.jar
           use_existing_version_if_available: true
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
