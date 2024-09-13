@@ -36,7 +36,7 @@ jobs:
           path: target/*.jar
 
   deploy_prod:
-    needs: build-and-deploy
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
