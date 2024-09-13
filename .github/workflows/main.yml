@@ -4,36 +4,22 @@ on:
   push:
     branches:
       - dev
-      - main
-      - uat
-  pull_request:
-    branches:
-      - main
-      - uat
   workflow_dispatch:
     inputs:
-      commit_id:
-        description: 'Commit ID to deploy'
-        required: true
-        default: ''
       version:
         description: 'Version tag for production release (e.g., R-2024-0.1)'
         required: true
         default: ''
 
 jobs:
-  build:
+  # Step 1: Build and Deploy to Dev
+  build_and_deploy_dev:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        environment: [dev, uat, main]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.ref }}
+          ref: dev
 
       - name: Set up JDK
         uses: actions/setup-java@v3
@@ -44,28 +30,13 @@ jobs:
       - name: Build with Maven
         run: mvn clean package
 
-      - name: Run Tests
-        run: mvn test
-        if: ${{ matrix.environment == 'dev' }}
-
       - name: Upload artifact to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: eb-artifact
           path: target/*.jar
 
-  deploy_dev:
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/dev' }}
-
-    steps:
-      - name: Download latest artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: eb-artifact
-
-      - name: Deploy to Elastic Beanstalk (dev)
+      - name: Deploy to Elastic Beanstalk (Dev)
         uses: einaregilsson/beanstalk-deploy@v15
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -76,18 +47,18 @@ jobs:
           version_label: ${{ github.sha }}
           deployment_package: target/*.jar
 
-  deploy_uat:
-    needs: build
+  # Step 2: Deploy to UAT (Test) if Dev Deployment is Successful
+  deploy_to_uat:
+    needs: build_and_deploy_dev
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/uat' }}
-
+    if: success()
     steps:
-      - name: Download latest artifact
+      - name: Download artifact from Dev
         uses: actions/download-artifact@v3
         with:
           name: eb-artifact
 
-      - name: Deploy to Elastic Beanstalk (uat)
+      - name: Deploy to Elastic Beanstalk (UAT)
         uses: einaregilsson/beanstalk-deploy@v15
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -98,18 +69,18 @@ jobs:
           version_label: ${{ github.sha }}
           deployment_package: target/*.jar
 
-  deploy_main:
-    needs: build
+  # Step 3: Deploy to Production if UAT Deployment is Successful
+  deploy_to_prod:
+    needs: deploy_to_uat
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
-
+    if: success()
     steps:
-      - name: Download latest artifact
+      - name: Download artifact from UAT
         uses: actions/download-artifact@v3
         with:
           name: eb-artifact
 
-      - name: Deploy to Elastic Beanstalk (main)
+      - name: Deploy to Elastic Beanstalk (Prod)
         uses: einaregilsson/beanstalk-deploy@v15
         with:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -120,8 +91,7 @@ jobs:
           version_label: ${{ github.sha }}
           deployment_package: target/*.jar
 
-      - name: Create Version Tag
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - name: Create Version Tag for Production
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
