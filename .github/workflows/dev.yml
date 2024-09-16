@@ -1,0 +1,45 @@
+name: Deploy to Dev
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      commit_id:
+        description: 'Commit ID to deploy'
+        required: true
+        default: ''
+
+jobs:
+  deploy_prod:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit_id != '' }}
+
+    steps:
+      - name: Download latest artifact from GitHub
+        uses: actions/download-artifact@v3
+        with:
+          name: eb-artifact
+          path: target/
+
+      - name: List files in target directory
+        run: ls -l target/
+
+      - name: Get latest artifact name
+        id: get_latest_artifact
+        run: |
+          latest_file=$(ls -t target/*.jar | head -n1)
+          echo "::set-output name=latest_artifact::$latest_file"
+
+      - name: Deploy to AWS Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v15
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APP_NAME }}
+          environment_name: Web-application-env
+          region: ${{ secrets.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: ${{ steps.get_latest_artifact.outputs.latest_artifact }}
+          use_existing_version_if_available: true
