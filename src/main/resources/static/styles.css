@@ -24,7 +24,7 @@ body {
 
 header {
     background: linear-gradient(90deg, #30475e, #f05454);
-    color: #e8e8e8;
+    color: red;
     padding: 25px 0;
     text-align: center;
     box-shadow: 0 3px 7px rgba(0, 0, 0, 0.15);
