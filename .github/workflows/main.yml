@@ -41,7 +41,7 @@ jobs:
         run: |
           # Fetch the latest tag that matches the pattern R-2024-0.X
           latest_tag=$(git tag -l 'R-2024-0.*' | sort -V | tail -n1)
-          
+
           # Extract the latest number and increment it
           if [ -z "$latest_tag" ]; then
             new_tag="R-2024-0.1"
@@ -50,6 +50,13 @@ jobs:
             next_number=$((latest_number + 1))
             new_tag="R-2024-0.$next_number"
           fi
+
+          # Check if the new tag already exists
+          while git ls-remote --tags origin | grep -q "refs/tags/$new_tag"; do
+            echo "Tag $new_tag already exists. Incrementing tag..."
+            next_number=$((next_number + 1))
+            new_tag="R-2024-0.$next_number"
+          done
 
           # Create and push the new tag
           echo "New tag: $new_tag"
@@ -90,7 +97,7 @@ jobs:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: ${{ secrets.EB_APP_NAME }}
-          environment_name: Web-application-env
+          environment_name: dev-env  # Ensure this is the correct environment name for Dev
           region: ${{ secrets.AWS_REGION }}
           version_label: ${{ github.sha }}
           deployment_package: ${{ steps.get_artifact.outputs.latest_artifact }}
@@ -123,7 +130,7 @@ jobs:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: ${{ secrets.EB_APP_NAME }}
-          environment_name: Web-application-env
+          environment_name: prod-env  # Ensure this is the correct environment name for Prod
           region: ${{ secrets.AWS_REGION }}
           version_label: ${{ github.sha }}
           deployment_package: ${{ steps.get_artifact.outputs.latest_artifact }}
