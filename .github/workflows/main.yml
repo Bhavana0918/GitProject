@@ -1,26 +1,31 @@
-name: Deploy to Dev, UAT, and Prod
+name: Deploy to Dev and Prod
 
 on:
   push:
     branches:
       - dev
-    tags:
-      - 'R-*' # Matches tags starting with 'R-'
+      - main
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version tag for production release (e.g., R-2024-0.1)'
+      commit_id:
+        description: 'Commit ID to deploy'
         required: true
         default: ''
+      deploy_to:
+        description: 'Specify the environment to deploy to (dev or prod)'
+        required: true
+        default: 'dev'
 
 jobs:
-  # Step 1: Build and Deploy to Dev
-  build_and_deploy_dev:
-    if: github.ref == 'refs/heads/dev'
+  build:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit_id != '' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit_id }}
 
       - name: Set up JDK
         uses: actions/setup-java@v3
@@ -31,16 +36,95 @@ jobs:
       - name: Build with Maven
         run: mvn clean package
 
+      - name: Create Tag
+        id: create_tag
+        run: |
+          # Fetch the latest tag that matches the pattern R-2024-0.X
+          latest_tag=$(git tag -l 'R-2024-0.*' | sort -V | tail -n1)
+          
+          # Extract the latest number and increment it
+          if [ -z "$latest_tag" ]; then
+            new_tag="R-2024-0.1"
+          else
+            latest_number=$(echo $latest_tag | sed -E 's/R-2024-0.//')
+            next_number=$((latest_number + 1))
+            new_tag="R-2024-0.$next_number"
+          fi
+
+          # Create and push the new tag
+          echo "New tag: $new_tag"
+          git tag $new_tag
+          git push origin $new_tag
+          echo "TAG=$new_tag" >> $GITHUB_ENV
+
       - name: Upload artifact to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: eb-artifact
           path: target/*.jar
 
-      - name: Create Version Tag for Dev
-        if: startsWith(github.ref, 'refs/tags/R-')
+  deploy_dev:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_to == 'dev' }}
+
+    steps:
+      - name: Download artifact from GitHub
+        uses: actions/download-artifact@v3
+        with:
+          name: eb-artifact
+          path: target/
+
+      - name: List files in target directory
+        run: ls -l target/
+
+      - name: Get artifact name
+        id: get_artifact
         run: |
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'actions@github.com'
-          git tag -a ${{ github.ref }} -m "Release ${{ github.ref }}"
-          git push origin ${{ github.ref }}
+          latest_file=$(ls -t target/*.jar | head -n1)
+          echo "::set-output name=latest_artifact::$latest_file"
+
+      - name: Deploy to AWS Elastic Beanstalk (Dev)
+        uses: einaregilsson/beanstalk-deploy@v15
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APP_NAME }}
+          environment_name: Web-application-env
+          region: ${{ secrets.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: ${{ steps.get_artifact.outputs.latest_artifact }}
+          use_existing_version_if_available: true
+
+  deploy_prod:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_to == 'prod' }}
+
+    steps:
+      - name: Download artifact from GitHub
+        uses: actions/download-artifact@v3
+        with:
+          name: eb-artifact
+          path: target/
+
+      - name: List files in target directory
+        run: ls -l target/
+
+      - name: Get artifact name
+        id: get_artifact
+        run: |
+          latest_file=$(ls -t target/*.jar | head -n1)
+          echo "::set-output name=latest_artifact::$latest_file"
+
+      - name: Deploy to AWS Elastic Beanstalk (Prod)
+        uses: einaregilsson/beanstalk-deploy@v15
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.EB_APP_NAME }}
+          environment_name: Web-application-env
+          region: ${{ secrets.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: ${{ steps.get_artifact.outputs.latest_artifact }}
+          use_existing_version_if_available: true
