@@ -5,17 +5,22 @@ on:
     branches:
       - dev
   workflow_dispatch:
+    inputs:
+      commit_id:
+        description: 'Commit ID to deploy'
+        required: true
+        default: ''
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit_id != '' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.sha }} # Ensures that the latest commit is checked out
+          ref: ${{ github.event.inputs.commit_id }}
 
       - name: Set up JDK
         uses: actions/setup-java@v3
@@ -35,7 +40,7 @@ jobs:
   deploy_dev:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/dev' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.commit_id != '' }}
 
     steps:
       - name: Download latest artifact from GitHub
@@ -51,7 +56,7 @@ jobs:
         id: get_latest_artifact
         run: |
           latest_file=$(ls -t target/*.jar | head -n1)
-          echo "LATEST_ARTIFACT=$latest_file" >> $GITHUB_ENV
+          echo "::set-output name=latest_artifact::$latest_file"
 
       - name: Deploy to AWS Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v15
@@ -62,5 +67,5 @@ jobs:
           environment_name: Web-application-env 
           region: ${{ secrets.AWS_REGION }}
           version_label: ${{ github.sha }}
-          deployment_package: ${{ env.LATEST_ARTIFACT }}
+          deployment_package: ${{ steps.get_latest_artifact.outputs.latest_artifact }}
           use_existing_version_if_available: true
